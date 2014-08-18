@@ -26,11 +26,17 @@ module Fluent
       @redis = Redis.new(host: ENV['REDIS_HOST'], port: ENV['REDIS_PORT'], password: ENV['REDIS_PASSWORD'])
       @redis.subscribe(@channel) do |on|
         on.subscribe do |channel, subscriptions|
-          log.info "SUBSCRIBE #{ channel }"
+          log.debug "Subscribed to #{ channel }"
         end
 
         on.message do |channel, message|
-          log.info "MESSAGE #{ message }"
+          begin
+            parsed = JSON.parse(message)
+            log.debug parsed
+          rescue JSON::ParserError => e
+            log.error e
+          end
+          Fluent::Engine.emit((@tag || channel), Engine.now, (parsed || message))
         end
       end
     end
